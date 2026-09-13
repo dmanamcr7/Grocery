@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F4F5F2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Groceries</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F5F2; --card:#FFFFFF; --ink:#1B1F1D; --ink-2:#5B625E; --ink-3:#98A09B;
+  --line:#E4E7E2; --line-2:#D2D7D1;
+  --green:#1F7A48; --green-bg:#E6F3EB;
+  --red:#B8360E; --red-bg:#FBE9E1;
+  --amber-bg:#FFF4D6;
+  --tap:44px; --r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);font-size:17px;line-height:1.35;
+  padding-bottom:calc(76px + env(safe-area-inset-bottom));min-height:100vh;-webkit-tap-highlight-color:transparent}
+button,input,select{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer;min-height:var(--tap)}
+input,select{border:1px solid var(--line-2);border-radius:10px;background:#fff;padding:10px 12px;min-height:var(--tap);width:100%}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--green);outline-offset:1px}
+h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:15px;font-weight:600;color:var(--ink-2)}
+.hidden{display:none!important}
+.wrap{max-width:560px;margin:0 auto;padding:16px 16px 0}
+
+/* header */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:14px}
+.top .sub{color:var(--ink-2);font-size:14px;margin-top:2px}
+.gear{width:var(--tap);height:var(--tap);border-radius:50%;display:grid;place-items:center;color:var(--ink-2)}
+.gear svg{width:22px;height:22px}
+.sync{font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--line-2);display:inline-block}
+.sync.on i{background:var(--green)}
+.sync.err i{background:var(--red)}
+
+/* store bar */
+.stores{display:flex;gap:8px;margin-bottom:14px;align-items:center}
+.stores .lbl{font-size:14px;color:var(--ink-2);white-space:nowrap}
+.chip{padding:0 14px;min-height:36px;border-radius:999px;border:1px solid var(--line-2);background:#fff;font-size:15px}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* add row */
+.add{display:flex;gap:8px;margin-bottom:16px}
+.add input{flex:1}
+.add button{padding:0 16px;border-radius:10px;background:var(--ink);color:#fff;font-weight:600}
+.addmore{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:-8px 0 16px}
+.addmore label{font-size:13px;color:var(--ink-2);display:block}
+.addmore label span{display:block;margin-bottom:4px}
+.addmore .crit-opt{display:flex;align-items:flex-end}
+.addmore .crit-opt button{width:100%;border:1px solid var(--line-2);border-radius:10px;background:#fff;font-size:15px}
+.addmore .crit-opt button[aria-pressed="true"]{background:var(--red-bg);border-color:var(--red);color:var(--red);font-weight:600}
+
+/* sections */
+.sec{margin-bottom:22px}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;padding:0 2px}
+.sec-h .n{font-size:14px;color:var(--ink-3)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.row{display:flex;align-items:center;gap:10px;padding:10px 12px 10px 0;border-top:1px solid var(--line);position:relative}
+.row:first-child{border-top:0}
+.row .rail{width:6px;align-self:stretch;flex:none;background:transparent}
+.row.crit .rail{background:var(--red)}
+.row .body{flex:1;min-width:0}
+.row .nm{font-weight:600;font-size:17px;overflow-wrap:anywhere}
+.row .meta{font-size:13px;color:var(--ink-2);display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+.row .meta .out{color:var(--red);font-weight:600}
+.row .meta .price{color:var(--ink)}
+.row .meta .price.other{color:var(--ink-3)}
+
+/* checklist tick */
+.tick{width:var(--tap);height:var(--tap);flex:none;display:grid;place-items:center}
+.tick i{width:28px;height:28px;border-radius:50%;border:2px solid var(--line-2);display:grid;place-items:center;transition:background .15s,border-color .15s}
+.tick i svg{width:16px;height:16px;opacity:0}
+.row.got .tick i{background:var(--green);border-color:var(--green)}
+.row.got .tick i svg{opacity:1}
+.row.got .nm{text-decoration:line-through;color:var(--ink-3)}
+
+/* stock controls */
+.qty{display:flex;align-items:center;gap:2px;flex:none}
+.qty button{width:40px;height:40px;border-radius:10px;border:1px solid var(--line-2);background:#fff;font-size:22px;line-height:1;min-height:0}
+.qty output{min-width:34px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums;font-size:18px}
+.qty output.zero{color:var(--red)}
+.bang{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--line-2);font-weight:800;font-size:18px;color:var(--ink-3);flex:none;min-height:0;display:grid;place-items:center}
+.bang[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:#fff}
+
+/* expanded row detail */
+.detail{padding:0 12px 12px 16px;border-top:1px dashed var(--line);background:#FAFBF9;font-size:14px}
+.detail .ptabs{display:flex;gap:6px;margin:10px 0 8px}
+.detail .ptabs button{min-height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);background:#fff;font-size:14px}
+.detail .ptabs button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.detail .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.detail label{display:block;color:var(--ink-2);font-size:13px}
+.detail label span{display:block;margin-bottom:3px}
+.detail .acts{display:flex;justify-content:space-between;margin-top:10px;gap:8px}
+.lnk{color:var(--green);font-weight:600;font-size:14px;padding:0 4px}
+.lnk.danger{color:var(--red)}
+.money{font-variant-numeric:tabular-nums}
+
+/* totals + done */
+.strip{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--green-bg);border:1px solid #CFE5D7;border-radius:var(--r);margin-bottom:16px}
+.strip b{font-size:18px}
+.strip button{background:var(--green);color:#fff;border-radius:10px;padding:0 16px;font-weight:600}
+.empty{padding:22px 16px;text-align:center;color:var(--ink-2);font-size:15px}
+
+/* tabs */
+.tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+.tabs button{flex:1;height:60px;font-size:14px;color:var(--ink-3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.tabs button[aria-selected="true"]{color:var(--ink);font-weight:600}
+.tabs button .cnt{position:absolute;margin-left:56px;margin-top:-30px;background:var(--red);color:#fff;font-size:11px;font-weight:700;border-radius:999px;min-width:18px;height:18px;padding:0 5px;display:grid;place-items:center}
+.tabs button .cnt:empty{display:none}
+.tabs svg{width:22px;height:22px}
+
+/* settings sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(27,31,29,.35);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.sheet{background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
+.sheet h2{font-size:20px;color:var(--ink);margin-bottom:4px}
+.sheet p{color:var(--ink-2);font-size:14px;margin-bottom:12px}
+.sheet label{display:block;font-size:14px;margin:12px 0 4px;color:var(--ink-2)}
+.sheet textarea{width:100%;min-height:110px;border:1px solid var(--line-2);border-radius:10px;padding:10px;font:13px/1.4 ui-monospace,Menlo,monospace}
+.sheet .btns{display:flex;gap:8px;margin-top:16px}
+.sheet .btns button{flex:1;border-radius:10px;border:1px solid var(--line-2);font-weight:600}
+.sheet .btns button.pri{background:var(--ink);color:#fff;border-color:var(--ink)}
+.status{font-size:14px;margin-top:8px;padding:10px;border-radius:10px;background:var(--bg)}
+.status.ok{background:var(--green-bg);color:var(--green)}
+.status.bad{background:var(--red-bg);color:var(--red)}
+.recent details{border-top:1px solid var(--line);padding:10px 12px}
+.recent summary{cursor:pointer;display:flex;justify-content:space-between;font-size:15px}
+.recent ul{list-style:none;margin-top:8px;color:var(--ink-2);font-size:14px}
+.recent li{display:flex;justify-content:space-between;padding:2px 0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom));background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;display:flex;gap:14px;align-items:center;z-index:30}
+.toast button{color:#9BE0B8;font-weight:700;min-height:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1 id="title">Shopping list</h1>
+      <div class="sub" id="subtitle"></div>
+    </div>
+    <div style="text-align:right">
+      <button class="gear" id="gear" aria-label="Household and sync settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+      <div class="sync" id="syncdot"><i></i><span>Only on this phone</span></div>
+    </div>
+  </div>
+
+  <div class="stores" id="stores"></div>
+
+  <div id="view-list"></div>
+  <div id="view-home" class="hidden"></div>
+</div>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" id="tab-list" aria-selected="true" data-tab="list">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>
+    List<span class="cnt" id="listcnt"></span>
+  </button>
+  <button role="tab" id="tab-home" aria-selected="false" data-tab="home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>
+    At home
+  </button>
+</nav>
+
+<div id="sheet" class="hidden"></div>
+<div id="toast" class="hidden"></div>
+
+<script>
+/* =========================================================
+   Groceries — house stock + checklist. Single file.
+   Data lives in localStorage (grocery:v1) and, when a
+   household is set up, mirrors to Firebase Realtime Database
+   at households/<code>/grocery so two phones share it.
+   ========================================================= */
+(function(){
+"use strict";
+const KEY="grocery:v1", CFGKEY="grocery:sync";
+const STORES=["Woolworths","Aldi","Coles"];
+const AREAS=["Kitchen","Bathroom","Laundry","Living room","Bedroom","Garage","Other"];
+const $=(s,el=document)=>el.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+const keyOf=s=>String(s||"").trim().toLowerCase();
+const money=n=>"A$"+(Number(n)||0).toFixed(2);
+const fmtDate=ts=>new Date(ts).toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short"});
+
+/* ---------- state ---------- */
+const blank=()=>({v:1,rev:"",store:"Woolworths",items:[],got:[],shops:[]});
+let D=load();
+function load(){ try{ const j=JSON.parse(localStorage.getItem(KEY)); return migrate(j)||blank(); }catch(e){ return blank(); } }
+function migrate(j){ if(!j||typeof j!=="object") return null; if(!j.v) j.v=1; j.items=j.items||[]; j.got=j.got||[]; j.shops=j.shops||[]; j.store=j.store||"Woolworths"; return j; }
+let S={tab:"list",open:null,priceTab:{},showMore:false,addCrit:false};
+
+function save(local){ D.rev=uid(); localStorage.setItem(KEY,JSON.stringify(D)); if(!local) push(); render(); }
+
+/* ---------- helpers ---------- */
+const itemById=id=>D.items.find(i=>i.id===id);
+const isOut=i=>(Number(i.qty)||0)<=0;
+function knownPrice(i,store){
+  const p=i.prices&&i.prices[store];
+  if(p!=null) return {price:p,store,exact:true};
+  for(const s of STORES){ if(i.prices&&i.prices[s]!=null) return {price:i.prices[s],store:s,exact:false}; }
+  return {price:null,store:null,exact:false};
+}
+const onList=()=>D.items.filter(isOut);
+const gotSet=()=>new Set(D.got);
+
+/* ---------- actions ---------- */
+function addItem(name,area,qty,crit){
+  name=name.trim(); if(!name) return;
+  const ex=D.items.find(i=>keyOf(i.name)===keyOf(name));
+  if(ex){ ex.qty=qty; if(crit) ex.crit=true; if(area) ex.area=area; save(); return; }
+  D.items.push({id:uid(),name,area:area||"Kitchen",qty:qty,crit:!!crit,usual:1,prices:{},added:Date.now()});
+  save();
+}
+function setQty(id,n){ const i=itemById(id); if(!i) return; i.qty=Math.max(0,n); if(i.qty>0) D.got=D.got.filter(g=>g!==id); save(); }
+function toggleCrit(id){ const i=itemById(id); if(i){ i.crit=!i.crit; save(); } }
+function setPrice(id,store,val){ const i=itemById(id); if(!i) return; i.prices=i.prices||{}; if(val===""||val==null||isNaN(val)) delete i.prices[store]; else i.prices[store]=Math.round(Number(val)*100)/100; save(); }
+function removeItem(id){ D.items=D.items.filter(i=>i.id!==id); D.got=D.got.filter(g=>g!==id); save(); }
+
+/* Tick on the list = got it = back in the house. Restocks to the item's usual quantity. */
+let undo=null;
+function gotIt(id){
+  const i=itemById(id); if(!i) return;
+  const before=i.qty;
+  i.qty=Math.max(1,Number(i.usual)||1);
+  if(!D.got.includes(id)) D.got.push(id);
+  undo={id,before};
+  save();
+  toast("Got "+i.name+" — back in the house",()=>{ const it=itemById(id); if(it){ it.qty=before; D.got=D.got.filter(g=>g!==id); undo=null; save(); } });
+}
+function doneShopping(){
+  const ids=D.got.slice(); if(!ids.length) return;
+  const lines=ids.map(id=>itemById(id)).filter(Boolean).map(i=>{ const kp=knownPrice(i,D.store); return {name:i.name,price:kp.price}; });
+  const total=lines.reduce((a,l)=>a+(l.price||0),0);
+  D.shops.unshift({id:uid(),ts:Date.now(),store:D.store,lines,total});
+  D.shops=D.shops.slice(0,30);
+  D.got=[];
+  save();
+  toast("Shop saved — "+money(total)+" at "+D.store);
+}
+
+/* ---------- render ---------- */
+function render(){
+  $("#title").textContent=S.tab==="list"?"Shopping list":"At home";
+  document.querySelectorAll(".tabs [role=tab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===S.tab));
+  $("#view-list").classList.toggle("hidden",S.tab!=="list");
+  $("#view-home").classList.toggle("hidden",S.tab!=="home");
+  const need=onList().filter(i=>!D.got.includes(i.id)).length;
+  $("#listcnt").textContent=need||"";
+  renderStores();
+  if(S.tab==="list") renderList(); else renderHome();
+}
+function renderStores(){
+  $("#stores").innerHTML='<span class="lbl">Shopping at</span>'+STORES.map(s=>'<button class="chip" data-store="'+s+'" aria-pressed="'+(s===D.store)+'">'+s+'</button>').join("");
+}
+function priceMeta(i){
+  const kp=knownPrice(i,D.store);
+  if(kp.price==null) return '<span class="price other">no price yet</span>';
+  return '<span class="price money'+(kp.exact?'':' other')+'">'+money(kp.price)+(kp.exact?'':' at '+kp.store)+'</span>';
+}
+function listRow(i,got){
+  return '<div class="row'+(i.crit?' crit':'')+(got?' got':'')+'" data-id="'+i.id+'">'
+    +'<div class="rail"></div>'
+    +'<div class="body"><div class="nm">'+esc(i.name)+'</div><div class="meta"><span>'+esc(i.area||"")+'</span>'+priceMeta(i)+'</div></div>'
+    +'<button class="tick" data-act="got" data-id="'+i.id+'" aria-label="'+(got?'Got it — tap to undo':'Got it')+'" '+(got?'disabled':'')+'><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></i></button>'
+    +'</div>';
+}
+function renderList(){
+  const g=gotSet();
+  const out=onList();
+  const crit=out.filter(i=>i.crit), non=out.filter(i=>!i.crit);
+  const gotItems=D.got.map(itemById).filter(Boolean);
+  const est=out.reduce((a,i)=>a+(knownPrice(i,D.store).price||0),0);
+  let h="";
+  if(!out.length&&!gotItems.length){
+    h+='<div class="card"><div class="empty">Nothing needed. When something at home hits zero it shows up here.</div></div>';
+  }
+  if(out.length) h+='<div class="strip"><span>'+out.length+' to get · about <b class="money">'+money(est)+'</b></span></div>';
+  const sec=(title,arr)=>arr.length?'<div class="sec"><div class="sec-h"><h2>'+title+'</h2><span class="n">'+arr.length+'</span></div><div class="card">'+arr.map(i=>listRow(i,false)).join("")+'</div></div>':"";
+  h+=sec("Critical",crit);
+  h+=sec("If budget allows",non);
+  if(gotItems.length){
+    const tot=gotItems.reduce((a,i)=>a+(knownPrice(i,D.store).price||0),0);
+    h+='<div class="sec"><div class="sec-h"><h2>Got this trip</h2><span class="n">'+gotItems.length+'</span></div>'
+      +'<div class="card">'+gotItems.map(i=>listRow(i,true)).join("")+'</div>'
+      +'<div class="strip" style="margin-top:10px"><span>Spent about <b class="money">'+money(tot)+'</b></span><button data-act="done">Done shopping</button></div></div>';
+  }
+  if(D.shops.length){
+    h+='<div class="sec"><div class="sec-h"><h2>Recent shops</h2></div><div class="card recent">'+D.shops.slice(0,6).map(s=>
+      '<details><summary><span>'+fmtDate(s.ts)+' · '+esc(s.store)+'</span><b class="money">'+money(s.total)+'</b></summary><ul>'+s.lines.map(l=>'<li><span>'+esc(l.name)+'</span><span class="money">'+(l.price!=null?money(l.price):"—")+'</span></li>').join("")+'</ul></details>').join("")+'</div></div>';
+  }
+  $("#view-list").innerHTML=h;
+}
+function stockRow(i){
+  const open=S.open===i.id;
+  const st=S.priceTab[i.id]||D.store;
+  let h='<div class="row'+(i.crit?' crit':'')+'" data-id="'+i.id+'">'
+    +'<div class="rail"></div>'
+    +'<button class="bang" data-act="crit" data-id="'+i.id+'" aria-pressed="'+!!i.crit+'" aria-label="'+(i.crit?'Critical — tap to make optional':'Mark as critical')+'">!</button>'
+    +'<div class="body"><button style="display:block;text-align:left;width:100%;min-height:0" data-act="open" data-id="'+i.id+'"><div class="nm">'+esc(i.name)+'</div>'
+    +'<div class="meta">'+(isOut(i)?'<span class="out">out — on the list</span>':'')+priceMeta(i)+'</div></button></div>'
+    +'<div class="qty"><button data-act="dec" data-id="'+i.id+'" aria-label="One less">−</button><output class="'+(isOut(i)?'zero':'')+'">'+(Number(i.qty)||0)+'</output><button data-act="inc" data-id="'+i.id+'" aria-label="One more">+</button></div>'
+    +'</div>';
+  if(open){
+    const p=i.prices||{};
+    h+='<div class="detail" data-id="'+i.id+'">'
+      +'<div class="ptabs">'+STORES.map(s=>'<button data-act="ptab" data-id="'+i.id+'" data-store="'+s+'" aria-pressed="'+(s===st)+'">'+s+(p[s]!=null?' · '+money(p[s]):'')+'</button>').join("")+'</div>'
+      +'<div class="grid">'
+      +'<label><span>Price at '+st+'</span><input type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" data-price="'+i.id+'" data-store="'+st+'" value="'+(p[st]!=null?p[st]:"")+'"></label>'
+      +'<label><span>Restock to (when ticked)</span><input type="number" inputmode="numeric" min="1" step="1" data-usual="'+i.id+'" value="'+(i.usual||1)+'"></label>'
+      +'<label><span>Where it lives</span><select data-area="'+i.id+'">'+AREAS.map(a=>'<option'+(a===i.area?' selected':'')+'>'+a+'</option>').join("")+'</select></label>'
+      +'<label><span>Name</span><input type="text" data-name="'+i.id+'" value="'+esc(i.name)+'"></label>'
+      +'</div>'
+      +'<div class="acts"><button class="lnk danger" data-act="remove" data-id="'+i.id+'">Remove from house</button><button class="lnk" data-act="open" data-id="'+i.id+'">Close</button></div>'
+      +'</div>';
+  }
+  return h;
+}
+function renderHome(){
+  const worth=D.items.reduce((a,i)=>{ const kp=knownPrice(i,D.store); return a+(kp.price||0)*(Number(i.qty)||0); },0);
+  let h='<div class="add"><input type="text" id="addname" placeholder="Add something to the house" autocomplete="off" enterkeyhint="done"><button id="addbtn">Add</button></div>'
+    +'<div class="addmore">'
+    +'<label><span>Area</span><select id="addarea">'+AREAS.map(a=>'<option>'+a+'</option>').join("")+'</select></label>'
+    +'<label><span>Have now</span><input type="number" id="addqty" inputmode="numeric" min="0" step="1" value="1"></label>'
+    +'<div class="crit-opt"><button id="addcrit" aria-pressed="'+S.addCrit+'">! Critical</button></div>'
+    +'</div>';
+  if(!D.items.length){
+    h+='<div class="card"><div class="empty">Add what you keep at home. Set a count to 0 and it goes straight onto the list. Tap ! for must-buys.</div></div>';
+  } else {
+    h+='<div class="sec-h" style="margin-bottom:12px"><h2>'+D.items.length+' items</h2><span class="n">worth about <span class="money">'+money(worth)+'</span> at '+esc(D.store)+'</span></div>';
+    const byArea={}; D.items.forEach(i=>{ (byArea[i.area||"Other"]=byArea[i.area||"Other"]||[]).push(i); });
+    AREAS.forEach(a=>{
+      const arr=(byArea[a]||[]).sort((x,y)=>(isOut(y)-isOut(x))||(y.crit-x.crit)||x.name.localeCompare(y.name));
+      if(!arr.length) return;
+      const outN=arr.filter(isOut).length;
+      h+='<div class="sec"><div class="sec-h"><h2>'+a+'</h2><span class="n">'+(outN?outN+' out':'')+'</span></div><div class="card">'+arr.map(stockRow).join("")+'</div></div>';
+    });
+  }
+  h+='<div class="sec"><div class="sec-h"><h2>Backup</h2></div><div class="card" style="display:flex;justify-content:space-around;padding:4px"><button class="lnk" id="exp">Export</button><button class="lnk" id="imp">Import</button></div><input type="file" id="impfile" accept="application/json" class="hidden"></div>';
+  $("#view-home").innerHTML=h;
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button"); if(!t) return;
+  if(t.dataset.tab){ S.tab=t.dataset.tab; S.open=null; render(); return; }
+  if(t.dataset.store){ D.store=t.dataset.store; save(); return; }
+  if(t.id==="gear"){ openSettings(); return; }
+  if(t.id==="addbtn"){ doAdd(); return; }
+  if(t.id==="addcrit"){ S.addCrit=!S.addCrit; t.setAttribute("aria-pressed",S.addCrit); return; }
+  if(t.id==="exp"){ const b=new Blob([JSON.stringify(D,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="groceries-backup.json"; a.click(); return; }
+  if(t.id==="imp"){ $("#impfile").click(); return; }
+  const act=t.dataset.act, id=t.dataset.id;
+  if(!act) return;
+  if(act==="got") gotIt(id);
+  else if(act==="done") doneShopping();
+  else if(act==="inc"){ const i=itemById(id); setQty(id,(Number(i.qty)||0)+1); }
+  else if(act==="dec"){ const i=itemById(id); setQty(id,(Number(i.qty)||0)-1); }
+  else if(act==="crit") toggleCrit(id);
+  else if(act==="open"){ S.open=S.open===id?null:id; render(); }
+  else if(act==="ptab"){ S.priceTab[id]=t.dataset.store; render(); $('[data-price="'+id+'"]')?.focus(); }
+  else if(act==="remove"){ if(confirm("Remove this item from the house?")){ S.open=null; removeItem(id); } }
+});
+document.addEventListener("change",e=>{
+  const el=e.target;
+  if(el.dataset.price){ setPrice(el.dataset.price,el.dataset.store,el.value); }
+  else if(el.dataset.usual){ const i=itemById(el.dataset.usual); if(i){ i.usual=Math.max(1,parseInt(el.value)||1); save(); } }
+  else if(el.dataset.area){ const i=itemById(el.dataset.area); if(i){ i.area=el.value; save(); } }
+  else if(el.dataset.name){ const i=itemById(el.dataset.name); if(i&&el.value.trim()){ i.name=el.value.trim(); save(); } }
+  else if(el.id==="impfile"&&el.files[0]){ el.files[0].text().then(txt=>{ const j=migrate(JSON.parse(txt)); if(!j||!Array.isArray(j.items)) throw 0; D=j; save(); toast("Imported "+D.items.length+" items"); }).catch(()=>toast("That file isn't a groceries backup")); }
+});
+document.addEventListener("keydown",e=>{ if(e.key==="Enter"&&e.target.id==="addname") doAdd(); });
+function doAdd(){ const n=$("#addname"); const v=n.value; const qty=Math.max(0,parseInt($("#addqty").value)||0); addItem(v,$("#addarea").value,qty,S.addCrit); S.addCrit=false; setTimeout(()=>{ const nn=$("#addname"); if(nn){ nn.value=""; nn.focus(); } },0); }
+
+/* ---------- toast ---------- */
+let toastT;
+function toast(msg,undoFn){
+  const el=$("#toast"); el.className="toast"; el.innerHTML=esc(msg)+(undoFn?'<button id="undo">Undo</button>':'');
+  if(undoFn) $("#undo").onclick=()=>{ undoFn(); el.className="hidden"; };
+  clearTimeout(toastT); toastT=setTimeout(()=>el.className="hidden",undoFn?6000:3000);
+}
+
+/* =========================================================
+   Household sync (Firebase Realtime Database, compat SDK)
+   Settings holds: {code, config} in localStorage (per phone).
+   Data path: households/<code>/grocery  — whole document,
+   last write wins, rev id stops echo loops.
+   ========================================================= */
+let cfg=(()=>{ try{ return JSON.parse(localStorage.getItem(CFGKEY))||{}; }catch(e){ return {}; } })();
+let db=null, ref=null, ready=false;
+function syncStatus(cls,txt){ const s=$("#syncdot"); s.className="sync "+cls; s.querySelector("span").textContent=txt; }
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("Couldn't load "+src)); document.head.appendChild(s); }); }
+async function connect(){
+  if(!cfg.config||!cfg.code){ syncStatus("","Only on this phone"); return; }
+  try{
+    syncStatus("","Connecting…");
+    if(!window.firebase){
+      await loadScript("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js");
+      await loadScript("https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js");
+    }
+    if(!firebase.apps.length) firebase.initializeApp(cfg.config);
+    db=firebase.database();
+    const code=cfg.code.trim().toLowerCase().replace(/[^a-z0-9-]/g,"-");
+    ref=db.ref("households/"+code+"/grocery");
+    ref.on("value",snap=>{
+      const remote=snap.val();
+      if(!remote){ ready=true; push(); syncStatus("on","Shared · "+code); return; }
+      ready=true;
+      if(remote.rev&&remote.rev===D.rev){ syncStatus("on","Shared · "+code); return; }
+      D=migrate(remote)||D; localStorage.setItem(KEY,JSON.stringify(D)); render();
+      syncStatus("on","Shared · "+code);
+    },err=>{ syncStatus("err","Sync blocked: "+err.code); });
+    db.ref(".info/connected").on("value",s=>{ if(!s.val()&&ready) syncStatus("","Offline — will sync"); });
+  }catch(e){ syncStatus("err","Sync error"); console.error(e); }
+}
+function push(){ if(ref&&ready){ ref.set(D).catch(err=>syncStatus("err","Write failed: "+(err.code||""))); } }
+
+function openSettings(){
+  const sh=$("#sheet"); sh.className="sheet-bg";
+  sh.innerHTML='<div class="sheet" role="dialog" aria-label="Household settings">'
+    +'<h2>Share with your household</h2>'
+    +'<p>Both phones use the same household code and the same database details. After that, the list and At home stay in step on both.</p>'
+    +'<label for="hcode">Household code (make one up, e.g. manam-house)</label><input id="hcode" type="text" autocapitalize="none" value="'+esc(cfg.code||"")+'">'
+    +'<label for="hcfg">Firebase config (paste the firebaseConfig block from the Firebase console)</label><textarea id="hcfg" placeholder="{ apiKey: \'…\', databaseURL: \'…\', projectId: \'…\' }">'+esc(cfg.config?JSON.stringify(cfg.config,null,2):"")+'</textarea>'
+    +'<div class="status" id="hstat">'+(cfg.config&&cfg.code?'Sharing is set up on this phone.':'Not shared yet — this phone only.')+'</div>'
+    +'<div class="btns"><button id="hcancel">Cancel</button>'+(cfg.config?'<button id="hoff">Stop sharing</button>':'')+'<button class="pri" id="hsave">Save and connect</button></div>'
+    +'</div>';
+  sh.onclick=e=>{ if(e.target===sh) close(); };
+  function close(){ sh.className="hidden"; sh.innerHTML=""; }
+  $("#hcancel").onclick=close;
+  if($("#hoff")) $("#hoff").onclick=()=>{ if(ref) ref.off(); ref=null; ready=false; cfg={}; localStorage.removeItem(CFGKEY); syncStatus("","Only on this phone"); close(); };
+  $("#hsave").onclick=()=>{
+    const code=$("#hcode").value.trim(); const raw=$("#hcfg").value.trim();
+    const stat=$("#hstat");
+    if(!code){ stat.className="status bad"; stat.textContent="Enter a household code."; return; }
+    let config;
+    try{ config=parseConfig(raw); }catch(e){ stat.className="status bad"; stat.textContent="That config didn't read. Paste the whole firebaseConfig = { … } block."; return; }
+    if(!config.databaseURL){ stat.className="status bad"; stat.textContent="Config has no databaseURL — create the Realtime Database first, then copy the config again."; return; }
+    cfg={code,config}; localStorage.setItem(CFGKEY,JSON.stringify(cfg));
+    stat.className="status ok"; stat.textContent="Saved. Connecting…";
+    if(ref) ref.off(); ref=null; ready=false;
+    connect().then(()=>setTimeout(close,600));
+  };
+}
+function parseConfig(raw){
+  let s=raw.replace(/^\s*(const|var|let)?\s*firebaseConfig\s*=\s*/,"").replace(/;\s*$/,"").trim();
+  try{ return JSON.parse(s); }catch(e){}
+  // tolerate JS object literal: unquoted keys, single quotes, trailing commas
+  s=s.replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g,'$1"$2":').replace(/'/g,'"').replace(/,\s*}/g,"}");
+  return JSON.parse(s);
+}
+
+/* ---------- boot ---------- */
+render();
+connect();
+})();
+</script>
+</body>
+</html>
