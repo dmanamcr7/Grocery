@@ -296,8 +296,8 @@ function renderList(){
       +'<div class="strip" style="margin-top:10px"><span>Spent about <b class="money">'+money(tot)+'</b></span><button data-act="done">Done shopping</button></div></div>';
   }
   if(D.shops.length){
-    h+='<div class="sec"><div class="sec-h"><h2>Recent shops</h2></div><div class="card recent">'+D.shops.slice(0,6).map(s=>
-      '<details><summary><span>'+fmtDate(s.ts)+' · '+esc(s.store)+'</span><b class="money">'+money(s.total)+'</b></summary><ul>'+s.lines.map(l=>'<li><span>'+esc(l.name)+'</span><span class="money">'+(l.price!=null?money(l.price):"—")+'</span></li>').join("")+'</ul></details>').join("")+'</div></div>';
+    h+='<div class="sec"><div class="sec-h"><h2>Recent shops</h2><button class="lnk danger" data-act="clearshops" style="min-height:0">Clear all</button></div><div class="card recent">'+D.shops.slice(0,6).map(s=>
+      '<details><summary><span>'+fmtDate(s.ts)+' · '+esc(s.store)+'</span><b class="money">'+money(s.total)+'</b></summary><ul>'+s.lines.map(l=>'<li><span>'+esc(l.name)+'</span><span class="money">'+(l.price!=null?money(l.price):"—")+'</span></li>').join("")+'</ul><div style="text-align:right;margin-top:6px"><button class="lnk danger" data-act="delshop" data-id="'+s.id+'" style="min-height:32px">Delete this shop</button></div></details>').join("")+'</div></div>';
   }
   $("#view-list").innerHTML=h;
 }
@@ -369,6 +369,8 @@ document.addEventListener("click",e=>{
   else if(act==="crit") toggleCrit(id);
   else if(act==="open"){ S.open=S.open===id?null:id; render(); }
   else if(act==="ptab"){ S.priceTab[id]=t.dataset.store; render(); $('[data-price="'+id+'"]')?.focus(); }
+  else if(act==="delshop"){ D.shops=D.shops.filter(x=>x.id!==id); save(); toast("Shop deleted"); }
+  else if(act==="clearshops"){ if(confirm("Delete all recent shops?")){ D.shops=[]; save(); } }
   else if(act==="remove"){ if(confirm("Remove this item from the house?")){ S.open=null; removeItem(id); } }
 });
 document.addEventListener("change",e=>{
