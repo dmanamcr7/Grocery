@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F4F5F2">
+<meta name="app-build" content="20260913-111238">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Groceries</title>
@@ -465,9 +466,26 @@ function parseConfig(raw){
   return JSON.parse(s);
 }
 
+/* ---------- self-update: compare our build stamp with the live file ---------- */
+const BUILD=document.querySelector('meta[name="app-build"]').content;
+async function checkUpdate(){
+  if(location.protocol==="file:") return;
+  try{
+    const r=await fetch(location.pathname,{cache:"no-store"}); if(!r.ok) return;
+    const m=(await r.text()).match(/name="app-build" content="([^"]+)"/);
+    if(m&&m[1]!==BUILD){
+      if(sessionStorage.getItem("grocery:reloaded")===m[1]) return; // don't loop
+      sessionStorage.setItem("grocery:reloaded",m[1]);
+      location.replace(location.pathname+"?v="+encodeURIComponent(m[1]));
+    }
+  }catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") checkUpdate(); });
+
 /* ---------- boot ---------- */
 render();
 connect();
+checkUpdate();
 })();
 </script>
 </body>
