@@ -397,7 +397,7 @@ function toast(msg,undoFn){
    last write wins, rev id stops echo loops.
    ========================================================= */
 let cfg=(()=>{ try{ return JSON.parse(localStorage.getItem(CFGKEY))||{}; }catch(e){ return {}; } })();
-let db=null, ref=null, ready=false;
+let db=null, ref=null, ready=false, lastErr="";
 function syncStatus(cls,txt){ const s=$("#syncdot"); s.className="sync "+cls; s.querySelector("span").textContent=txt; }
 function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("Couldn't load "+src)); document.head.appendChild(s); }); }
 async function connect(){
@@ -419,9 +419,9 @@ async function connect(){
       if(remote.rev&&remote.rev===D.rev){ syncStatus("on","Shared · "+code); return; }
       D=migrate(remote)||D; localStorage.setItem(KEY,JSON.stringify(D)); render();
       syncStatus("on","Shared · "+code);
-    },err=>{ syncStatus("err","Sync blocked: "+err.code); });
+    },err=>{ lastErr=err.code||err.message; syncStatus("err","Sync blocked: "+lastErr); });
     db.ref(".info/connected").on("value",s=>{ if(!s.val()&&ready) syncStatus("","Offline — will sync"); });
-  }catch(e){ syncStatus("err","Sync error"); console.error(e); }
+  }catch(e){ const m=(e&&(e.message||e.code))||String(e); syncStatus("err","Sync error: "+m); lastErr=m; console.error(e); }
 }
 function push(){ if(ref&&ready){ ref.set(D).catch(err=>syncStatus("err","Write failed: "+(err.code||""))); } }
 
@@ -432,7 +432,7 @@ function openSettings(){
     +'<p>Both phones use the same household code and the same database details. After that, the list and At home stay in step on both.</p>'
     +'<label for="hcode">Household code (make one up, e.g. manam-house)</label><input id="hcode" type="text" autocapitalize="none" value="'+esc(cfg.code||"")+'">'
     +'<label for="hcfg">Firebase config (paste the firebaseConfig block from the Firebase console)</label><textarea id="hcfg" placeholder="{ apiKey: \'…\', databaseURL: \'…\', projectId: \'…\' }">'+esc(cfg.config?JSON.stringify(cfg.config,null,2):"")+'</textarea>'
-    +'<div class="status" id="hstat">'+(cfg.config&&cfg.code?'Sharing is set up on this phone.':'Not shared yet — this phone only.')+'</div>'
+    +'<div class="status'+(lastErr?' bad':'')+'" id="hstat">'+(lastErr?'Last error: '+esc(lastErr):(cfg.config&&cfg.code?'Sharing is set up on this phone.':'Not shared yet — this phone only.'))+'</div>'
     +'<div class="btns"><button id="hcancel">Cancel</button>'+(cfg.config?'<button id="hoff">Stop sharing</button>':'')+'<button class="pri" id="hsave">Save and connect</button></div>'
     +'</div>';
   sh.onclick=e=>{ if(e.target===sh) close(); };
@@ -446,10 +446,13 @@ function openSettings(){
     let config;
     try{ config=parseConfig(raw); }catch(e){ stat.className="status bad"; stat.textContent="That config didn't read. Paste the whole firebaseConfig = { … } block."; return; }
     if(!config.databaseURL){ stat.className="status bad"; stat.textContent="Config has no databaseURL — create the Realtime Database first, then copy the config again."; return; }
+    config.databaseURL=String(config.databaseURL).trim().replace(/\/+$/,"");
+    if(!/^https:\/\/[a-z0-9-]+\.(firebaseio\.com|[a-z0-9-]+\.firebasedatabase\.app)$/.test(config.databaseURL)){ stat.className="status bad"; stat.textContent="That doesn't look like a database URL. It should end in firebaseio.com or firebasedatabase.app, with nothing after it."; return; }
+    lastErr="";
     cfg={code,config}; localStorage.setItem(CFGKEY,JSON.stringify(cfg));
     stat.className="status ok"; stat.textContent="Saved. Connecting…";
     if(ref) ref.off(); ref=null; ready=false;
-    connect().then(()=>setTimeout(close,600));
+    connect().then(()=>{ const st=$("#hstat"); if(st&&lastErr){ st.className="status bad"; st.textContent="Couldn't connect: "+lastErr; } else setTimeout(close,600); });
   };
 }
 function parseConfig(raw){
