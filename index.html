@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F4F5F2">
-<meta name="app-build" content="20260928-120232">
+<meta name="app-build" content="20261003-055132">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Groceries</title>
@@ -66,6 +66,9 @@ h2{font-size:15px;font-weight:600;color:var(--ink-2)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .row{display:flex;align-items:center;gap:10px;padding:10px 12px 10px 0;border-top:1px solid var(--line);position:relative}
 .row:first-child{border-top:0}
+.cat{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);padding:10px 12px 4px;background:#FAFBF9;border-top:1px solid var(--line)}
+.cat:first-child{border-top:0}
+.cat+.row{border-top:0}
 .row .rail{width:6px;align-self:stretch;flex:none;background:transparent}
 .row.crit .rail{background:var(--red)}
 .row .body{flex:1;min-width:0}
@@ -91,6 +94,13 @@ h2{font-size:15px;font-weight:600;color:var(--ink-2)}
 .bang{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--line-2);font-weight:800;font-size:18px;color:var(--ink-3);flex:none;min-height:0;display:grid;place-items:center}
 .bang[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:#fff}
 
+/* swipe to delete (At home) */
+.swipe{position:relative;overflow:hidden;border-top:1px solid var(--line)}
+.swipe:first-child{border-top:0}
+.swipe .row{border-top:0;background:var(--card);position:relative;z-index:1;transition:transform .18s ease-out;touch-action:pan-y}
+.swipe.dragging .row{transition:none}
+.swipe.open .row{transform:translateX(-96px)}
+.swipe .del{position:absolute;top:0;right:0;bottom:0;width:96px;background:var(--red);color:#fff;font-weight:700;font-size:15px;display:grid;place-items:center;border-radius:0}
 /* expanded row detail */
 .detail{padding:0 12px 12px 16px;border-top:1px dashed var(--line);background:#FAFBF9;font-size:14px}
 .detail .ptabs{display:flex;gap:6px;margin:10px 0 8px}
@@ -111,7 +121,7 @@ h2{font-size:15px;font-weight:600;color:var(--ink-2)}
 .empty{padding:22px 16px;text-align:center;color:var(--ink-2);font-size:15px}
 
 /* tabs */
-.tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
 .tabs button{flex:1;height:60px;font-size:14px;color:var(--ink-3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
 .tabs button[aria-selected="true"]{color:var(--ink);font-weight:600}
 .tabs button .cnt{position:absolute;margin-left:56px;margin-top:-30px;background:var(--red);color:#fff;font-size:11px;font-weight:700;border-radius:999px;min-width:18px;height:18px;padding:0 5px;display:grid;place-items:center}
@@ -221,6 +231,34 @@ h2{font-size:15px;font-weight:600;color:var(--ink-2)}
 const KEY="grocery:v1", CFGKEY="grocery:sync";
 const STORES=["Woolworths","Aldi","Coles"];
 const AREAS=["Kitchen","Bathroom","Laundry","Living room","Bedroom","Garage","Other"];
+const CATS=["Produce","Breads & Cereals","Meat","Dairy","Frozen Foods","Bakery","Baking Items","Snacks & Candy","Household Items","Personal Care & Health","Wine/Beer/Spirits","Other"];
+const CATWORDS={
+ "Produce":["apple","banana","orange","mandarin","lemon","lime","grape","berry","berries","strawberry","strawberries","blueberry","blueberries","raspberry","raspberries","mango","pear","peach","plum","melon","watermelon","pineapple","kiwi","avocado","tomato","potato","sweet potato","onion","garlic","ginger","carrot","broccoli","cauliflower","capsicum","pepper","cucumber","lettuce","spinach","kale","rocket","salad","celery","zucchini","pumpkin","corn","mushroom","bean","peas","snow pea","cabbage","leek","herb","basil","coriander","parsley","mint","chilli","chili","eggplant","asparagus","beetroot","fruit","veg"],
+ "Breads & Cereals":["cereal","oat","muesli","granola","weet-bix","weetbix","rice","pasta","spaghetti","noodle","quinoa","couscous","flour tortilla","wrap","taco shell","cracker","rice cake","porridge","corn flake","bran"],
+ "Meat":["chicken","beef","mince","steak","pork","lamb","bacon","ham","sausage","salami","turkey","fish","salmon","tuna","prawn","shrimp","seafood","chop","rib","schnitzel","meat","deli","kebab","roast"],
+ "Dairy":["milk","cheese","yoghurt","yogurt","butter","cream","egg","margarine","custard","feta","mozzarella","parmesan","cheddar","halloumi","brie"],
+ "Frozen Foods":["frozen","ice cream","icecream","ice-cream","icy pole","fish finger","sorbet","gelato","icypole"],
+ "Bakery":["bread","loaf","roll","bun","bagel","croissant","muffin","wrap","tortilla","pita","naan","sourdough","crumpet","english muffin","cake","pastry","donut","doughnut"],
+ "Baking Items":["flour","sugar","baking powder","baking soda","bicarb","yeast","vanilla","cocoa","icing","choc chip","chocolate chip","sprinkle","food colour","condensed milk","cornflour","self raising","self-raising","gelatine","syrup","honey","oil","vinegar","salt","spice","stock","sauce","mayo","ketchup","tomato paste","soy","curry","seasoning","jam","peanut butter","nutella","spread","tea","coffee","can of","canned","tin","tinned"],
+ "Snacks & Candy":["potato chip","corn chip","chip","crisp","pizza","nugget","dumpling","chocolate","lolly","lollies","candy","sweet","biscuit","cookie","popcorn","pretzel","nut","almond","cashew","peanut","trail mix","muesli bar","snack bar","jelly","gum"],
+ "Household Items":["toilet paper","paper towel","tissue","bin bag","garbage","dishwash","detergent","laundry","washing powder","softener","bleach","cleaner","spray","sponge","scourer","wipes","foil","cling wrap","glad wrap","baking paper","glad","battery","batteries","light bulb","globe","candle","matches","lighter","air freshener","toilet paper","loo paper","pet food","dog food","cat food","litter","mop","broom","soap"],
+ "Personal Care & Health":["shampoo","conditioner","toothpaste","toothbrush","floss","deodorant","razor","shave","body wash","hand wash","moisturiser","moisturizer","sunscreen","panadol","paracetamol","nurofen","ibuprofen","vitamin","tablet","bandaid","band-aid","tampon","pad","nappies","nappy","diaper","wipe","lotion","makeup","cotton","lip balm","hand soap","hair"],
+ "Wine/Beer/Spirits":["wine","beer","cider","vodka","gin","whisky","whiskey","rum","bourbon","tequila","spirit","champagne","prosecco","sparkling","seltzer","liqueur","lager","ale","stout","sav blanc","shiraz","pinot","merlot","chardonnay","rosé","rose wine"]
+};
+const REC={};
+function wordRe(w){ return REC[w]||(REC[w]=new RegExp("\\b"+w.trim().replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(e?s)?\\b")); }
+const CATORDER=CATS.slice(); // store-walk order = list order above
+function autoCat(name){
+  const n=" "+keyOf(name)+" ";
+  // specific overrides first
+  if(/\bfrozen\b/.test(n)) return "Frozen Foods";
+  if(/\b(wine|beer|cider|vodka|gin|whisky|whiskey|rum|bourbon|tequila|prosecco|champagne)\b/.test(n)) return "Wine/Beer/Spirits";
+  // phrases ("peanut butter", "potato chips") beat single words ("butter", "potato")
+  for(const multi of [true,false]){
+    for(const c of CATS){ const ws=CATWORDS[c]||[]; for(const w of ws){ if((w.trim().includes(" "))===multi && wordRe(w).test(n)) return c; } }
+  }
+  return "Other";
+}
 const $=(s,el=document)=>el.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
@@ -229,13 +267,13 @@ const money=n=>"A$"+(Number(n)||0).toFixed(2);
 const fmtDate=ts=>new Date(ts).toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short"});
 
 /* ---------- state ---------- */
-const blank=()=>({v:2,rev:"",store:"Woolworths",items:[],got:[],shops:[],recipes:[],plans:{}});
+const blank=()=>({v:3,rev:"",store:"Woolworths",items:[],got:[],shops:[],recipes:[],plans:{},tomb:{},updated:0});
 let D=load();
 function load(){ try{ const j=JSON.parse(localStorage.getItem(KEY)); return migrate(j)||blank(); }catch(e){ return blank(); } }
 function arr(x){ return Array.isArray(x)?x:(x&&typeof x==="object"?Object.values(x):[]); }
 function migrate(j){
   if(!j||typeof j!=="object") return null;
-  j.items=arr(j.items).filter(i=>i&&i.id).map(i=>({id:i.id,name:String(i.name||"").trim()||"(unnamed)",area:i.area||"Kitchen",qty:Number(i.qty)||0,crit:!!i.crit,usual:Math.max(1,Number(i.usual)||1),prices:(i.prices&&typeof i.prices==="object")?i.prices:{},added:i.added||0,u:i.u||0}));
+  j.items=arr(j.items).filter(i=>i&&i.id).map(i=>({id:i.id,name:String(i.name||"").trim()||"(unnamed)",area:i.area||"Kitchen",qty:Number(i.qty)||0,crit:!!i.crit,usual:Math.max(1,Number(i.usual)||1),prices:(i.prices&&typeof i.prices==="object")?i.prices:{},cat:CATS.includes(i.cat)?i.cat:autoCat(i.name||""),added:i.added||0,u:i.u||0}));
   j.recipes=arr(j.recipes).filter(r=>r&&r.id).map(r=>({id:r.id,name:String(r.name||"").trim()||"(unnamed)",ings:arr(r.ings).map(String),u:r.u||0}));
   j.shops=arr(j.shops).filter(x=>x&&x.id).map(x=>({id:x.id,ts:x.ts||0,store:x.store||"",lines:arr(x.lines),total:Number(x.total)||0,u:x.u||x.ts||0}));
   j.got=arr(j.got); j.store=j.store||"Woolworths"; j.plans=(j.plans&&typeof j.plans==="object")?j.plans:{};
@@ -247,7 +285,7 @@ let S={tab:"list",open:null,priceTab:{},showMore:false,addCrit:false,slotOpen:nu
 let SNAP=snapshot(D);
 function snapshot(d){ const m={}; ["items","recipes","shops"].forEach(c=>{ m[c]={}; d[c].forEach(x=>{ const {u,...rest}=x; m[c][x.id]=JSON.stringify(rest); }); }); return m; }
 function stamp(){
-  const now=Date.now();
+  const now=Date.now(); D.tomb=D.tomb||{};
   ["items","recipes","shops"].forEach(c=>{
     const seen={};
     D[c].forEach(x=>{ const {u,...rest}=x; const j=JSON.stringify(rest); seen[x.id]=1; if(SNAP[c][x.id]!==j) x.u=now; });
@@ -275,13 +313,17 @@ function addItem(name,area,qty,crit){
   name=name.trim(); if(!name) return;
   const ex=D.items.find(i=>keyOf(i.name)===keyOf(name));
   if(ex){ ex.qty=qty; if(crit) ex.crit=true; if(area) ex.area=area; save(); return; }
-  D.items.push({id:uid(),name,area:area||"Kitchen",qty:qty,crit:!!crit,usual:1,prices:{},added:Date.now()});
+  D.items.push({id:uid(),name,area:area||"Kitchen",qty:qty,crit:!!crit,usual:1,prices:{},cat:autoCat(name),added:Date.now()});
   save();
 }
 function setQty(id,n){ const i=itemById(id); if(!i) return; i.qty=Math.max(0,n); if(i.qty>0) D.got=D.got.filter(g=>g!==id); save(); }
 function toggleCrit(id){ const i=itemById(id); if(i){ i.crit=!i.crit; save(); } }
 function setPrice(id,store,val){ const i=itemById(id); if(!i) return; i.prices=i.prices||{}; if(val===""||val==null||isNaN(val)) delete i.prices[store]; else i.prices[store]=Math.round(Number(val)*100)/100; save(); }
-function removeItem(id){ D.items=D.items.filter(i=>i.id!==id); D.got=D.got.filter(g=>g!==id); save(); }
+function removeItem(id,withUndo){
+  const it=itemById(id); if(!it) return;
+  D.items=D.items.filter(i=>i.id!==id); D.got=D.got.filter(g=>g!==id); save();
+  if(withUndo) toast("Deleted "+it.name, ()=>{ delete D.tomb[id]; D.items.push(it); save(); });
+}
 
 /* Tick on the list = got it = back in the house. Restocks to the item's usual quantity. */
 let undo=null;
@@ -330,7 +372,7 @@ function priceMeta(i){
 function listRow(i,got){
   return '<div class="row'+(i.crit?' crit':'')+(got?' got':'')+'" data-id="'+i.id+'">'
     +'<div class="rail"></div>'
-    +'<div class="body"><div class="nm">'+esc(i.name)+'</div><div class="meta"><span>'+esc(i.area||"")+'</span>'+priceMeta(i)+'</div></div>'
+    +'<div class="body"><div class="nm">'+esc(i.name)+'</div><div class="meta">'+priceMeta(i)+'</div></div>'
     +'<button class="tick" data-act="got" data-id="'+i.id+'" aria-label="'+(got?'Got it — tap to undo':'Got it')+'" '+(got?'disabled':'')+'><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></i></button>'
     +'</div>';
 }
@@ -345,7 +387,13 @@ function renderList(){
     h+='<div class="card"><div class="empty">Nothing needed. When something at home hits zero it shows up here.</div></div>';
   }
   if(out.length) h+='<div class="strip"><span>'+out.length+' to get · about <b class="money">'+money(est)+'</b></span></div>';
-  const sec=(title,arr)=>arr.length?'<div class="sec"><div class="sec-h"><h2>'+title+'</h2><span class="n">'+arr.length+'</span></div><div class="card">'+arr.map(i=>listRow(i,false)).join("")+'</div></div>':"";
+  const sec=(title,arr)=>{
+    if(!arr.length) return "";
+    const by={}; arr.forEach(i=>{ const c=CATS.includes(i.cat)?i.cat:"Other"; (by[c]=by[c]||[]).push(i); });
+    let x='<div class="sec"><div class="sec-h"><h2>'+title+'</h2><span class="n">'+arr.length+'</span></div><div class="card">';
+    CATORDER.forEach(c=>{ if(!by[c]) return; x+='<div class="cat">'+c+'</div>'+by[c].sort((p,q)=>p.name.localeCompare(q.name)).map(i=>listRow(i,false)).join(""); });
+    return x+'</div></div>';
+  };
   h+=sec("Critical",crit);
   h+=sec("If budget allows",non);
   if(gotItems.length){
@@ -363,13 +411,14 @@ function renderList(){
 function stockRow(i){
   const open=S.open===i.id;
   const st=S.priceTab[i.id]||D.store;
-  let h='<div class="row'+(i.crit?' crit':'')+'" data-id="'+i.id+'">'
+  let h='<div class="swipe" data-swipe="'+i.id+'"><button class="del" data-act="swipedel" data-id="'+i.id+'" tabindex="-1">Delete</button>'
+    +'<div class="row'+(i.crit?' crit':'')+'" data-id="'+i.id+'">'
     +'<div class="rail"></div>'
     +'<button class="bang" data-act="crit" data-id="'+i.id+'" aria-pressed="'+!!i.crit+'" aria-label="'+(i.crit?'Critical — tap to make optional':'Mark as critical')+'">!</button>'
     +'<div class="body"><button style="display:block;text-align:left;width:100%;min-height:0" data-act="open" data-id="'+i.id+'"><div class="nm">'+esc(i.name)+'</div>'
     +'<div class="meta">'+(isOut(i)?'<span class="out">out — on the list</span>':'')+priceMeta(i)+(WK.has(keyOf(i.name))?'<span class="tagwk">this week</span>':'')+'</div></button></div>'
     +'<div class="qty"><button data-act="dec" data-id="'+i.id+'" aria-label="One less">−</button><output class="'+(isOut(i)?'zero':'')+'">'+(Number(i.qty)||0)+'</output><button data-act="inc" data-id="'+i.id+'" aria-label="One more">+</button></div>'
-    +'</div>';
+    +'</div></div>';
   if(open){
     const p=i.prices||{};
     h+='<div class="detail" data-id="'+i.id+'">'
@@ -378,6 +427,7 @@ function stockRow(i){
       +'<label><span>Price at '+st+'</span><input type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" data-price="'+i.id+'" data-store="'+st+'" value="'+(p[st]!=null?p[st]:"")+'"></label>'
       +'<label><span>Restock to (when ticked)</span><input type="number" inputmode="numeric" min="1" step="1" data-usual="'+i.id+'" value="'+(i.usual||1)+'"></label>'
       +'<label><span>Where it lives</span><select data-area="'+i.id+'">'+AREAS.map(a=>'<option'+(a===i.area?' selected':'')+'>'+a+'</option>').join("")+'</select></label>'
+      +'<label><span>Shop category</span><select data-cat="'+i.id+'">'+CATS.map(c=>'<option'+(c===(i.cat||"Other")?' selected':'')+'>'+c+'</option>').join("")+'</select></label>'
       +'<label><span>Name</span><input type="text" data-name="'+i.id+'" value="'+esc(i.name)+'"></label>'
       +'</div>'
       +'<div class="acts"><button class="lnk danger" data-act="remove" data-id="'+i.id+'">Remove from house</button><button class="lnk" data-act="open" data-id="'+i.id+'">Close</button></div>'
@@ -426,7 +476,7 @@ const recipeById=id=>D.recipes.find(r=>r.id===id);
 function ensureItem(name){
   name=name.trim(); if(!name) return null;
   let it=D.items.find(i=>keyOf(i.name)===keyOf(name));
-  if(!it){ it={id:uid(),name,area:"Kitchen",qty:0,crit:false,usual:1,prices:{},added:Date.now()}; D.items.push(it); }
+  if(!it){ it={id:uid(),name,area:"Kitchen",qty:0,crit:false,usual:1,prices:{},cat:autoCat(name),added:Date.now()}; D.items.push(it); }
   return it;
 }
 function saveRecipe(id,name,ings){
@@ -554,16 +604,42 @@ document.addEventListener("click",e=>{
   else if(act==="delshop"){ D.shops=D.shops.filter(x=>x.id!==id); save(); toast("Shop deleted"); }
   else if(act==="clearshops"){ if(confirm("Delete all recent shops?")){ D.shops=[]; save(); } }
   else if(act==="remove"){ if(confirm("Remove this item from the house?")){ S.open=null; removeItem(id); } }
+  else if(act==="swipedel"){ S.open=null; removeItem(id,true); }
 });
 document.addEventListener("change",e=>{
   const el=e.target;
   if(el.dataset.price){ setPrice(el.dataset.price,el.dataset.store,el.value); }
   else if(el.dataset.usual){ const i=itemById(el.dataset.usual); if(i){ i.usual=Math.max(1,parseInt(el.value)||1); save(); } }
   else if(el.dataset.area){ const i=itemById(el.dataset.area); if(i){ i.area=el.value; save(); } }
-  else if(el.dataset.name){ const i=itemById(el.dataset.name); if(i&&el.value.trim()){ i.name=el.value.trim(); save(); } }
+  else if(el.dataset.name){ const i=itemById(el.dataset.name); if(i&&el.value.trim()){ const wasAuto=i.cat===autoCat(i.name); i.name=el.value.trim(); if(wasAuto) i.cat=autoCat(i.name); save(); } }
+  else if(el.dataset.cat){ const i=itemById(el.dataset.cat); if(i){ i.cat=el.value; save(); } }
   else if(el.id==="impfile"&&el.files[0]){ el.files[0].text().then(txt=>{ const j=migrate(JSON.parse(txt)); if(!j||!Array.isArray(j.items)) throw 0; D=j; save(); toast("Imported "+D.items.length+" items"); }).catch(()=>toast("That file isn't a groceries backup")); }
 });
 document.addEventListener("keydown",e=>{ if(e.key==="Enter"&&e.target.id==="addname") doAdd(); });
+/* swipe left on an At home row to reveal Delete */
+(function(){
+  let el=null,x0=0,y0=0,dx=0,axis=null;
+  const closeAll=except=>document.querySelectorAll(".swipe.open").forEach(w=>{ if(w!==except) w.classList.remove("open"); });
+  document.addEventListener("touchstart",e=>{
+    const w=e.target.closest(".swipe"); if(!w||e.target.closest(".del")){ el=null; return; }
+    el=w; x0=e.touches[0].clientX; y0=e.touches[0].clientY; dx=0; axis=null; closeAll(w);
+  },{passive:true});
+  document.addEventListener("touchmove",e=>{
+    if(!el) return;
+    const t=e.touches[0], mx=t.clientX-x0, my=t.clientY-y0;
+    if(!axis){ if(Math.abs(mx)<6&&Math.abs(my)<6) return; axis=Math.abs(mx)>Math.abs(my)?"x":"y"; }
+    if(axis!=="x") return;
+    const open=el.classList.contains("open"); dx=Math.max(-110,Math.min(open?96:0,mx+(open?-96:0)));
+    el.classList.add("dragging"); el.querySelector(".row").style.transform="translateX("+dx+"px)";
+  },{passive:true});
+  document.addEventListener("touchend",()=>{
+    if(!el) return;
+    const row=el.querySelector(".row"); el.classList.remove("dragging"); row.style.transform="";
+    if(axis==="x") el.classList.toggle("open", dx<-48);
+    el=null;
+  });
+  document.addEventListener("click",e=>{ if(!e.target.closest(".swipe.open")) closeAll(); });
+})();
 function doAdd(){ const n=$("#addname"); const v=n.value; const qty=Math.max(0,parseInt($("#addqty").value)||0); addItem(v,$("#addarea").value,qty,S.addCrit); S.addCrit=false; setTimeout(()=>{ const nn=$("#addname"); if(nn){ nn.value=""; nn.focus(); } },0); }
 
 /* ---------- toast ---------- */
@@ -610,7 +686,7 @@ async function connect(){
       if(changedLocal) render();
       if(changedRemote) push();                             // cloud was missing something this phone had
     },err=>{ lastErr=err.code||err.message; syncStatus("err","Sync blocked: "+lastErr); });
-    db.ref(".info/connected").on("value",s=>{ if(!s.val()&&ready) syncStatus("","Offline — will sync"); });
+    db.ref(".info/connected").on("value",s=>{ if(!ready) return; if(s.val()) syncStatus("on","Shared · "+code); else syncStatus("","Offline — will sync"); });
   }catch(e){ const m=(e&&(e.message||e.code))||String(e); syncStatus("err","Sync error: "+m); lastErr=m; console.error(e); }
 }
 function push(){
