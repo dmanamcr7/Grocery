@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F4F5F2">
-<meta name="app-build" content="20260913-114455">
+<meta name="app-build" content="20260928-120232">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Groceries</title>
@@ -232,10 +232,31 @@ const fmtDate=ts=>new Date(ts).toLocaleDateString("en-AU",{weekday:"short",day:"
 const blank=()=>({v:2,rev:"",store:"Woolworths",items:[],got:[],shops:[],recipes:[],plans:{}});
 let D=load();
 function load(){ try{ const j=JSON.parse(localStorage.getItem(KEY)); return migrate(j)||blank(); }catch(e){ return blank(); } }
-function migrate(j){ if(!j||typeof j!=="object") return null; if(!j.v) j.v=1; j.items=j.items||[]; j.got=j.got||[]; j.shops=j.shops||[]; j.store=j.store||"Woolworths"; j.recipes=j.recipes||[]; j.plans=j.plans||{}; if(!j.plans.week){ const ks=Object.keys(j.plans).sort(); if(ks.length){ j.plans={week:j.plans[ks[ks.length-1]]}; } } if(j.v<2) j.v=2; return j; }
+function arr(x){ return Array.isArray(x)?x:(x&&typeof x==="object"?Object.values(x):[]); }
+function migrate(j){
+  if(!j||typeof j!=="object") return null;
+  j.items=arr(j.items).filter(i=>i&&i.id).map(i=>({id:i.id,name:String(i.name||"").trim()||"(unnamed)",area:i.area||"Kitchen",qty:Number(i.qty)||0,crit:!!i.crit,usual:Math.max(1,Number(i.usual)||1),prices:(i.prices&&typeof i.prices==="object")?i.prices:{},added:i.added||0,u:i.u||0}));
+  j.recipes=arr(j.recipes).filter(r=>r&&r.id).map(r=>({id:r.id,name:String(r.name||"").trim()||"(unnamed)",ings:arr(r.ings).map(String),u:r.u||0}));
+  j.shops=arr(j.shops).filter(x=>x&&x.id).map(x=>({id:x.id,ts:x.ts||0,store:x.store||"",lines:arr(x.lines),total:Number(x.total)||0,u:x.u||x.ts||0}));
+  j.got=arr(j.got); j.store=j.store||"Woolworths"; j.plans=(j.plans&&typeof j.plans==="object")?j.plans:{};
+  if(!j.plans.week){ const ks=Object.keys(j.plans).sort(); if(ks.length){ j.plans={week:j.plans[ks[ks.length-1]]}; } }
+  j.tomb=(j.tomb&&typeof j.tomb==="object")?j.tomb:{}; j.updated=j.updated||0; j.v=3; return j;
+}
 let S={tab:"list",open:null,priceTab:{},showMore:false,addCrit:false,slotOpen:null,homeFilter:false,weekOff:0};
 
-function save(local){ D.rev=uid(); localStorage.setItem(KEY,JSON.stringify(D)); if(!local) push(); render(); }
+let SNAP=snapshot(D);
+function snapshot(d){ const m={}; ["items","recipes","shops"].forEach(c=>{ m[c]={}; d[c].forEach(x=>{ const {u,...rest}=x; m[c][x.id]=JSON.stringify(rest); }); }); return m; }
+function stamp(){
+  const now=Date.now();
+  ["items","recipes","shops"].forEach(c=>{
+    const seen={};
+    D[c].forEach(x=>{ const {u,...rest}=x; const j=JSON.stringify(rest); seen[x.id]=1; if(SNAP[c][x.id]!==j) x.u=now; });
+    Object.keys(SNAP[c]).forEach(id=>{ if(!seen[id]) D.tomb[id]=now; });
+  });
+  D.updated=now; SNAP=snapshot(D);
+}
+function backup(){ try{ if(D.items.length) localStorage.setItem(KEY+":backup",JSON.stringify(D)); }catch(e){} }
+function save(local){ stamp(); D.rev=uid(); localStorage.setItem(KEY,JSON.stringify(D)); backup(); if(!local) push(); render(); }
 
 /* ---------- helpers ---------- */
 const itemById=id=>D.items.find(i=>i.id===id);
@@ -285,7 +306,8 @@ function doneShopping(){
 }
 
 /* ---------- render ---------- */
-function render(){
+function render(){ try{ renderInner(); }catch(e){ console.error(e); const v=$("#view-"+S.tab)||$("#view-list"); v.innerHTML='<div class="card"><div class="empty">Something went wrong drawing this screen: '+esc(e.message)+'<br><br>Your data is safe. Tap the gear → Restore backup if it persists.</div></div>'; } }
+function renderInner(){
   $("#title").textContent={list:"Shopping list",home:"At home",meals:"Meals"}[S.tab];
   document.querySelectorAll(".tabs [role=tab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===S.tab));
   $("#view-list").classList.toggle("hidden",S.tab!=="list");
@@ -575,17 +597,46 @@ async function connect(){
     const code=cfg.code.trim().toLowerCase().replace(/[^a-z0-9-]/g,"-");
     ref=db.ref("households/"+code+"/grocery");
     ref.on("value",snap=>{
-      const remote=snap.val();
-      if(!remote){ ready=true; push(); syncStatus("on","Shared · "+code); return; }
+      const raw=snap.val();
       ready=true;
-      if(remote.rev&&remote.rev===D.rev){ syncStatus("on","Shared · "+code); return; }
-      D=migrate(remote)||D; localStorage.setItem(KEY,JSON.stringify(D)); render();
       syncStatus("on","Shared · "+code);
+      if(raw&&raw.rev&&raw.rev===D.rev) return;          // our own write echoed back
+      const remote=migrate(raw);
+      if(!remote){ push(); return; }                       // nothing in the cloud yet
+      const merged=merge(D,remote);
+      const changedLocal=JSON.stringify(strip(merged))!==JSON.stringify(strip(D));
+      const changedRemote=JSON.stringify(strip(merged))!==JSON.stringify(strip(remote));
+      D=merged; SNAP=snapshot(D); localStorage.setItem(KEY,JSON.stringify(D)); backup();
+      if(changedLocal) render();
+      if(changedRemote) push();                             // cloud was missing something this phone had
     },err=>{ lastErr=err.code||err.message; syncStatus("err","Sync blocked: "+lastErr); });
     db.ref(".info/connected").on("value",s=>{ if(!s.val()&&ready) syncStatus("","Offline — will sync"); });
   }catch(e){ const m=(e&&(e.message||e.code))||String(e); syncStatus("err","Sync error: "+m); lastErr=m; console.error(e); }
 }
-function push(){ if(ref&&ready){ ref.set(D).catch(err=>syncStatus("err","Write failed: "+(err.code||""))); } }
+function push(){
+  if(!(ref&&ready)) return;
+  D.rev=uid(); localStorage.setItem(KEY,JSON.stringify(D));
+  ref.set(JSON.parse(JSON.stringify(D))).catch(err=>syncStatus("err","Write failed: "+(err.code||"")));
+}
+/* union by id; newest version of each record wins; a deletion beats any older edit */
+function strip(d){ const {rev,...rest}=d; return rest; }
+function merge(a,b){
+  const out=migrate(JSON.parse(JSON.stringify(a)));
+  const tomb={}; [a.tomb,b.tomb].forEach(t=>Object.keys(t||{}).forEach(k=>{ tomb[k]=Math.max(tomb[k]||0,t[k]); }));
+  ["items","recipes","shops"].forEach(c=>{
+    const map={};
+    a[c].forEach(x=>map[x.id]=x);
+    b[c].forEach(x=>{ const cur=map[x.id]; if(!cur||(x.u||0)>(cur.u||0)) map[x.id]=x; });
+    out[c]=Object.values(map).filter(x=>!(tomb[x.id]&&tomb[x.id]>(x.u||0)));
+  });
+  out.shops.sort((x,y)=>(y.ts||0)-(x.ts||0)); out.items.sort((x,y)=>(x.added||0)-(y.added||0));
+  out.tomb=tomb;
+  const newer=(b.updated||0)>(a.updated||0)?b:a;
+  out.plans=JSON.parse(JSON.stringify(newer.plans||{})); out.store=newer.store||out.store;
+  out.got=arr(newer.got).filter(id=>out.items.some(i=>i.id===id));
+  out.updated=Math.max(a.updated||0,b.updated||0);
+  return out;
+}
 
 function openSettings(){
   const sh=$("#sheet"); sh.className="sheet-bg";
@@ -596,10 +647,12 @@ function openSettings(){
     +'<label for="hcfg">Firebase config (paste the firebaseConfig block from the Firebase console)</label><textarea id="hcfg" placeholder="{ apiKey: \'…\', databaseURL: \'…\', projectId: \'…\' }">'+esc(cfg.config?JSON.stringify(cfg.config,null,2):"")+'</textarea>'
     +'<div class="status'+(lastErr?' bad':'')+'" id="hstat">'+(lastErr?'Last error: '+esc(lastErr):(cfg.config&&cfg.code?'Sharing is set up on this phone.':'Not shared yet — this phone only.'))+'</div>'
     +'<div class="btns"><button id="hcancel">Cancel</button>'+(cfg.config?'<button id="hoff">Stop sharing</button>':'')+'<button class="pri" id="hsave">Save and connect</button></div>'
+    +(localStorage.getItem(KEY+":backup")?'<div class="btns"><button id="hrestore">Restore backup ('+(JSON.parse(localStorage.getItem(KEY+":backup")).items||[]).length+' items) — merges in, never deletes</button></div>':'')
     +'</div>';
   sh.onclick=e=>{ if(e.target===sh) close(); };
   function close(){ sh.className="hidden"; sh.innerHTML=""; }
   $("#hcancel").onclick=close;
+  if($("#hrestore")) $("#hrestore").onclick=()=>{ try{ const b=migrate(JSON.parse(localStorage.getItem(KEY+":backup"))); b.tomb={}; const cur=D; cur.tomb={}; D=merge(b,cur); SNAP=snapshot(D); save(); toast("Backup merged in"); }catch(e){ toast("Backup couldn't be read"); } close(); };
   if($("#hoff")) $("#hoff").onclick=()=>{ if(ref) ref.off(); ref=null; ready=false; cfg={}; localStorage.removeItem(CFGKEY); syncStatus("","Only on this phone"); close(); };
   $("#hsave").onclick=()=>{
     const code=$("#hcode").value.trim(); const raw=$("#hcfg").value.trim();
