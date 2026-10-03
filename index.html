@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F4F5F2">
-<meta name="app-build" content="20261003-060442">
+<meta name="app-build" content="20261003-061616">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Groceries</title>
@@ -453,10 +453,15 @@ function renderHome(){
     h+='<div class="sec-h" style="margin-bottom:12px"><h2>'+D.items.length+' items</h2><span class="n">worth about <span class="money">'+money(worth)+'</span> at '+esc(D.store)+'</span></div>';
     const byArea={}; D.items.filter(i=>!S.homeFilter||WK.has(keyOf(i.name))).forEach(i=>{ (byArea[i.area||"Other"]=byArea[i.area||"Other"]||[]).push(i); });
     AREAS.forEach(a=>{
-      const arr=(byArea[a]||[]).sort((x,y)=>(isOut(y)-isOut(x))||(y.crit-x.crit)||x.name.localeCompare(y.name));
+      const arr=(byArea[a]||[]);
       if(!arr.length) return;
       const outN=arr.filter(isOut).length;
-      h+='<div class="sec"><div class="sec-h"><h2>'+a+'</h2><span class="n">'+(outN?outN+' out':'')+'</span></div><div class="card">'+arr.map(stockRow).join("")+'</div></div>';
+      const byCat={}; arr.forEach(i=>{ const c=CATS.includes(i.cat)?i.cat:"Other"; (byCat[c]=byCat[c]||[]).push(i); });
+      let body="";
+      CATORDER.forEach(c=>{ if(!byCat[c]) return;
+        const rows=byCat[c].sort((x,y)=>(isOut(y)-isOut(x))||(y.crit-x.crit)||x.name.localeCompare(y.name));
+        body+='<div class="cat">'+c+'</div>'+rows.map(stockRow).join(""); });
+      h+='<div class="sec"><div class="sec-h"><h2>'+a+'</h2><span class="n">'+(outN?outN+' out':'')+'</span></div><div class="card">'+body+'</div></div>';
     });
   }
   h+='<div class="sec"><div class="sec-h"><h2>Backup</h2></div><div class="card" style="display:flex;justify-content:space-around;padding:4px"><button class="lnk" id="exp">Export</button><button class="lnk" id="imp">Import</button></div><input type="file" id="impfile" accept="application/json" class="hidden"></div>';
