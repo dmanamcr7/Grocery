@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F4F5F2">
-<meta name="app-build" content="20261003-055132">
+<meta name="app-build" content="20261003-060442">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Groceries</title>
@@ -68,7 +68,7 @@ h2{font-size:15px;font-weight:600;color:var(--ink-2)}
 .row:first-child{border-top:0}
 .cat{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);padding:10px 12px 4px;background:#FAFBF9;border-top:1px solid var(--line)}
 .cat:first-child{border-top:0}
-.cat+.row{border-top:0}
+.cat+.row,.cat+.swipe{border-top:0}
 .row .rail{width:6px;align-self:stretch;flex:none;background:transparent}
 .row.crit .rail{background:var(--red)}
 .row .body{flex:1;min-width:0}
@@ -231,7 +231,7 @@ h2{font-size:15px;font-weight:600;color:var(--ink-2)}
 const KEY="grocery:v1", CFGKEY="grocery:sync";
 const STORES=["Woolworths","Aldi","Coles"];
 const AREAS=["Kitchen","Bathroom","Laundry","Living room","Bedroom","Garage","Other"];
-const CATS=["Produce","Breads & Cereals","Meat","Dairy","Frozen Foods","Bakery","Baking Items","Snacks & Candy","Household Items","Personal Care & Health","Wine/Beer/Spirits","Other"];
+const CATS=["Produce","Breads & Cereals","Meat","Dairy","Frozen Foods","Bakery","Pantry Items","Snacks & Candy","Household Items","Personal Care & Health","Wine/Beer/Spirits","Other"];
 const CATWORDS={
  "Produce":["apple","banana","orange","mandarin","lemon","lime","grape","berry","berries","strawberry","strawberries","blueberry","blueberries","raspberry","raspberries","mango","pear","peach","plum","melon","watermelon","pineapple","kiwi","avocado","tomato","potato","sweet potato","onion","garlic","ginger","carrot","broccoli","cauliflower","capsicum","pepper","cucumber","lettuce","spinach","kale","rocket","salad","celery","zucchini","pumpkin","corn","mushroom","bean","peas","snow pea","cabbage","leek","herb","basil","coriander","parsley","mint","chilli","chili","eggplant","asparagus","beetroot","fruit","veg"],
  "Breads & Cereals":["cereal","oat","muesli","granola","weet-bix","weetbix","rice","pasta","spaghetti","noodle","quinoa","couscous","flour tortilla","wrap","taco shell","cracker","rice cake","porridge","corn flake","bran"],
@@ -239,7 +239,7 @@ const CATWORDS={
  "Dairy":["milk","cheese","yoghurt","yogurt","butter","cream","egg","margarine","custard","feta","mozzarella","parmesan","cheddar","halloumi","brie"],
  "Frozen Foods":["frozen","ice cream","icecream","ice-cream","icy pole","fish finger","sorbet","gelato","icypole"],
  "Bakery":["bread","loaf","roll","bun","bagel","croissant","muffin","wrap","tortilla","pita","naan","sourdough","crumpet","english muffin","cake","pastry","donut","doughnut"],
- "Baking Items":["flour","sugar","baking powder","baking soda","bicarb","yeast","vanilla","cocoa","icing","choc chip","chocolate chip","sprinkle","food colour","condensed milk","cornflour","self raising","self-raising","gelatine","syrup","honey","oil","vinegar","salt","spice","stock","sauce","mayo","ketchup","tomato paste","soy","curry","seasoning","jam","peanut butter","nutella","spread","tea","coffee","can of","canned","tin","tinned"],
+ "Pantry Items":["flour","sugar","baking powder","baking soda","bicarb","yeast","vanilla","cocoa","icing","choc chip","chocolate chip","sprinkle","food colour","condensed milk","cornflour","self raising","self-raising","gelatine","syrup","honey","oil","vinegar","salt","spice","stock","sauce","mayo","ketchup","tomato paste","soy","curry","seasoning","jam","peanut butter","nutella","spread","tea","coffee","can of","canned","tin","tinned"],
  "Snacks & Candy":["potato chip","corn chip","chip","crisp","pizza","nugget","dumpling","chocolate","lolly","lollies","candy","sweet","biscuit","cookie","popcorn","pretzel","nut","almond","cashew","peanut","trail mix","muesli bar","snack bar","jelly","gum"],
  "Household Items":["toilet paper","paper towel","tissue","bin bag","garbage","dishwash","detergent","laundry","washing powder","softener","bleach","cleaner","spray","sponge","scourer","wipes","foil","cling wrap","glad wrap","baking paper","glad","battery","batteries","light bulb","globe","candle","matches","lighter","air freshener","toilet paper","loo paper","pet food","dog food","cat food","litter","mop","broom","soap"],
  "Personal Care & Health":["shampoo","conditioner","toothpaste","toothbrush","floss","deodorant","razor","shave","body wash","hand wash","moisturiser","moisturizer","sunscreen","panadol","paracetamol","nurofen","ibuprofen","vitamin","tablet","bandaid","band-aid","tampon","pad","nappies","nappy","diaper","wipe","lotion","makeup","cotton","lip balm","hand soap","hair"],
@@ -273,7 +273,7 @@ function load(){ try{ const j=JSON.parse(localStorage.getItem(KEY)); return migr
 function arr(x){ return Array.isArray(x)?x:(x&&typeof x==="object"?Object.values(x):[]); }
 function migrate(j){
   if(!j||typeof j!=="object") return null;
-  j.items=arr(j.items).filter(i=>i&&i.id).map(i=>({id:i.id,name:String(i.name||"").trim()||"(unnamed)",area:i.area||"Kitchen",qty:Number(i.qty)||0,crit:!!i.crit,usual:Math.max(1,Number(i.usual)||1),prices:(i.prices&&typeof i.prices==="object")?i.prices:{},cat:CATS.includes(i.cat)?i.cat:autoCat(i.name||""),added:i.added||0,u:i.u||0}));
+  j.items=arr(j.items).filter(i=>i&&i.id).map(i=>({id:i.id,name:String(i.name||"").trim()||"(unnamed)",area:i.area||"Kitchen",qty:Number(i.qty)||0,crit:!!i.crit,usual:Math.max(1,Number(i.usual)||1),prices:(i.prices&&typeof i.prices==="object")?i.prices:{},cat:CATS.includes(i.cat)?i.cat:(i.cat==="Baking Items"?"Pantry Items":autoCat(i.name||"")),added:i.added||0,u:i.u||0}));
   j.recipes=arr(j.recipes).filter(r=>r&&r.id).map(r=>({id:r.id,name:String(r.name||"").trim()||"(unnamed)",ings:arr(r.ings).map(String),u:r.u||0}));
   j.shops=arr(j.shops).filter(x=>x&&x.id).map(x=>({id:x.id,ts:x.ts||0,store:x.store||"",lines:arr(x.lines),total:Number(x.total)||0,u:x.u||x.ts||0}));
   j.got=arr(j.got); j.store=j.store||"Woolworths"; j.plans=(j.plans&&typeof j.plans==="object")?j.plans:{};
@@ -370,11 +370,12 @@ function priceMeta(i){
   return '<span class="price money'+(kp.exact?'':' other')+'">'+money(kp.price)+(kp.exact?'':' at '+kp.store)+'</span>';
 }
 function listRow(i,got){
-  return '<div class="row'+(i.crit?' crit':'')+(got?' got':'')+'" data-id="'+i.id+'">'
+  return '<div class="swipe" data-swipe="'+i.id+'"><button class="del" data-act="swipedel" data-id="'+i.id+'" tabindex="-1">Delete</button>'
+    +'<div class="row'+(i.crit?' crit':'')+(got?' got':'')+'" data-id="'+i.id+'">'
     +'<div class="rail"></div>'
     +'<div class="body"><div class="nm">'+esc(i.name)+'</div><div class="meta">'+priceMeta(i)+'</div></div>'
     +'<button class="tick" data-act="got" data-id="'+i.id+'" aria-label="'+(got?'Got it — tap to undo':'Got it')+'" '+(got?'disabled':'')+'><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></i></button>'
-    +'</div>';
+    +'</div></div>';
 }
 function renderList(){
   const g=gotSet();
